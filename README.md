@@ -13,6 +13,13 @@ I have only tested it in Windows 11, and it requires manual installation as it w
 - Configurable text processing (codeblocks, emphasis)
 - Simple interface with keyboard shortcuts and context menu
 
+## To do
+
+- Concatenate produced audio chunks before saving and embedding audio files
+- Fix voice selection based on syntax (i.e. send text in quotes as a separate request)
+- Remove the *asterisks* emphasis option, which is not supported
+- Check max context for Kokoro-TTS, make sure the slider numbers are adequate
+
 ## Prerequisites
 
 1. Python 3.8 or higher
