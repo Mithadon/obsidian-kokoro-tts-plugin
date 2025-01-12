@@ -2,6 +2,8 @@
 
 This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quality text-to-speech with multiple voice options. It uses the lightweight Kokoro v0.19 model which offers natural-sounding speech in both American and British English.
 
+I have only tested it in Windows 11, and it requires manual installation as it works with a locally hosted Kokoro TTS backend. The backend will use CUDA if available, or fallback to CPU.
+
 ## Features
 
 - Multiple voice options (Bella, Sarah, Adam, Michael, Emma, Isabella, George, Lewis, Nicole, Sky)
@@ -18,13 +20,9 @@ This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quali
    - Windows: 
      * Download espeak-ng-1.51.msi from [espeak-ng releases](https://github.com/espeak-ng/espeak-ng/releases/tag/1.51)
      * Install the MSI package
-     * Add both `C:\Program Files\eSpeak NG` and `C:\Program Files\eSpeak NG\bin` to your PATH
-   - Linux: `sudo apt-get install espeak-ng`
-   - macOS: `brew install espeak-ng`
    Note: Version 1.51 is required. Other versions may not work correctly.
 3. Kokoro TTS model and voices
-   - Clone from [Kokoro-82M repository](https://huggingface.co/hexgrad/Kokoro-82M)
-   - Download model file (`kokoro-v0_19.pth`) and voice files
+   - Download model file (`kokoro-v0_19.pth`) and voice files from [Kokoro-82M repository](https://huggingface.co/hexgrad/Kokoro-82M)
 
 ## Installation
 
@@ -44,9 +42,7 @@ This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quali
    ```
 4. Enable the plugin in Obsidian's Community Plugins settings
 
-### From Community Plugins (Coming Soon)
-
-The plugin will be available in Obsidian's Community Plugins browser.
+### From Community Plugins (not available)
 
 ## Configuration
 
@@ -101,32 +97,10 @@ If audio saving is enabled:
 - Standard Obsidian audio player is used for playback
 - Use the "Stop Speech" command or button to stop playback
 
-## Troubleshooting
 
-### Common Issues
+### Troubleshooting
 
-1. **"Failed to start TTS backend"**
-   - Verify Python path in settings
-   - Check if all dependencies are installed
-   - Ensure espeak-ng is properly installed
-   - Verify `kokoro_backend.py` exists in the plugin directory
-
-2. **"Voice not found"**
-   - Verify voices directory path
-   - Check if voice files are properly downloaded
-
-3. **"Model path not set"**
-   - Configure the path to `kokoro-v0_19.pth` in settings
-   - Ensure the model file exists at the specified path
-
-4. **No audio output**
-   - Check system audio settings
-   - Verify sounddevice configuration
-   - Check console for Python backend errors
-
-### Debug Logs
-
-Enable debug mode in settings to see detailed logs in the developer console (Ctrl/Cmd + Shift + I).
+Use ctrl+shift+I to open the Obsidian developer console to identify errors.
 
 ## Support
 
