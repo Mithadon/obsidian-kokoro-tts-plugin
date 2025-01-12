@@ -1,0 +1,9 @@
+phonemizer
+torch
+transformers
+scipy
+munch
+sounddevice
+soundfile
+numpy
+websockets

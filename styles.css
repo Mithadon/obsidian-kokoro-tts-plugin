@@ -1,8 +1,32 @@
-/*
+/* Status indicators */
+.kokoro-tts-status-running {
+    color: var(--text-success);
+    font-weight: bold;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.kokoro-tts-status-stopped {
+    color: var(--text-muted);
+}
 
-If your plugin does not need CSS, delete this file.
+/* Icon status */
+.kokoro-tts-running {
+    color: var(--text-success);
+}
 
-*/
+/* Settings */
+.setting-item-control button {
+    margin-right: 6px;
+}
+
+.setting-item-control button:last-child {
+    margin-right: 0;
+}
+
+/* Status text */
+.status-bar-item.plugin-kokoro-tts {
+    color: var(--text-muted);
+}
+
+.status-bar-item.plugin-kokoro-tts.running {
+    color: var(--text-success);
+}

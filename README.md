@@ -1,94 +1,140 @@
-# Obsidian Sample Plugin
+# Kokoro TTS Plugin for Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quality text-to-speech with multiple voice options. It uses the lightweight Kokoro v0.19 model which offers natural-sounding speech in both American and British English.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Features
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+- Multiple voice options (Bella, Sarah, Adam, Michael, Emma, Isabella, George, Lewis, Nicole, Sky)
+- Support for both American and British English
+- Text selection and full note reading
+- Audio file saving and auto-embedding
+- Configurable text processing (codeblocks, emphasis)
+- Simple interface with keyboard shortcuts and context menu
 
-## First time developing plugins?
+## Prerequisites
 
-Quick starting guide for new plugin devs:
+1. Python 3.8 or higher
+2. espeak-ng 1.51 (required for phonemization)
+   - Windows: 
+     * Download espeak-ng-1.51.msi from [espeak-ng releases](https://github.com/espeak-ng/espeak-ng/releases/tag/1.51)
+     * Install the MSI package
+     * Add both `C:\Program Files\eSpeak NG` and `C:\Program Files\eSpeak NG\bin` to your PATH
+   - Linux: `sudo apt-get install espeak-ng`
+   - macOS: `brew install espeak-ng`
+   Note: Version 1.51 is required. Other versions may not work correctly.
+3. Kokoro TTS model and voices
+   - Clone from [Kokoro-82M repository](https://huggingface.co/hexgrad/Kokoro-82M)
+   - Download model file (`kokoro-v0_19.pth`) and voice files
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## Installation
 
-## Releasing new releases
+### Manual Installation
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+1. Create a `kokoro-tts` folder in your vault's `.obsidian/plugins/` directory
+2. Copy these files to the `kokoro-tts` folder:
+   - `main.js`
+   - `manifest.json`
+   - `styles.css`
+   - `kokoro_backend.py`
+   - `requirements.txt`
+3. Install Python dependencies:
+   ```bash
+   cd YOUR_VAULT/.obsidian/plugins/kokoro-tts
+   pip install -r requirements.txt
+   ```
+4. Enable the plugin in Obsidian's Community Plugins settings
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### From Community Plugins (Coming Soon)
 
-## Adding your plugin to the community plugin list
+The plugin will be available in Obsidian's Community Plugins browser.
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+## Configuration
 
-## How to use
+1. Open Settings → Kokoro TTS
+2. Configure the required paths:
+   - Python executable path (e.g., `python` or full path to Python)
+   - Model path: Full path to `kokoro-v0_19.pth`
+   - Voices path: Full path to the directory containing voice files
+   - Backend script path: Path to `kokoro_backend.py` (default is in plugin directory)
+3. Configure optional settings:
+   - Voice selection
+   - Audio settings (auto-play, save, embed)
+   - Text processing options
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### File Locations
 
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+The plugin expects the following structure:
+```
+YOUR_VAULT/
+├── .obsidian/
+│   └── plugins/
+│       └── kokoro-tts/
+│           ├── main.js
+│           ├── manifest.json
+│           ├── styles.css
+│           ├── kokoro_backend.py    # Python backend script
+│           └── requirements.txt     # Python dependencies
+└── tts-audio/                      # Generated audio files (if enabled)
 ```
 
-If you have multiple URLs, you can also do:
+## Usage
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+### Commands
 
-## API Documentation
+The plugin adds three commands that you can use:
 
-See https://github.com/obsidianmd/obsidian-api
+1. **Read Highlighted Text**: Reads the currently selected text
+2. **Read Whole Page**: Reads the entire current note
+3. **Stop Speech**: Stops the current speech playback
+
+Access these commands through:
+- Command Palette (Ctrl/Cmd + P)
+- Custom hotkeys (configurable in Settings → Hotkeys)
+- Context menu (right-click on text)
+
+### Audio Files
+
+If audio saving is enabled:
+- Files are saved in the same folder as the note being read
+- Files are named with the format: `notename_timestamp_chunk.wav`
+- Files can be automatically embedded in notes at the cursor position
+- Standard Obsidian audio player is used for playback
+- Use the "Stop Speech" command or button to stop playback
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Failed to start TTS backend"**
+   - Verify Python path in settings
+   - Check if all dependencies are installed
+   - Ensure espeak-ng is properly installed
+   - Verify `kokoro_backend.py` exists in the plugin directory
+
+2. **"Voice not found"**
+   - Verify voices directory path
+   - Check if voice files are properly downloaded
+
+3. **"Model path not set"**
+   - Configure the path to `kokoro-v0_19.pth` in settings
+   - Ensure the model file exists at the specified path
+
+4. **No audio output**
+   - Check system audio settings
+   - Verify sounddevice configuration
+   - Check console for Python backend errors
+
+### Debug Logs
+
+Enable debug mode in settings to see detailed logs in the developer console (Ctrl/Cmd + Shift + I).
+
+## Support
+
+- For plugin issues: [GitHub Issues](https://github.com/mithadon/obsidian-kokoro-tts-plugin/issues)
+- For Kokoro TTS issues: [Kokoro Discord](https://discord.gg/QuGxSWBfQy)
+
+## Credits
+
+- [Kokoro TTS](https://huggingface.co/hexgrad/Kokoro-82M) by hexgrad
+- [StyleTTS2](https://github.com/yl4579/StyleTTS2) architecture by Li et al.
+- [espeak-ng](https://github.com/espeak-ng/espeak-ng) for phonemization
