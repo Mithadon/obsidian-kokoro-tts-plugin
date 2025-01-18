@@ -11,31 +11,45 @@ export class TextProcessor {
         const chunks: string[] = [];
         
         for (const paragraph of paragraphs) {
-            let units: string[] = [];
-            
-            // Split based on strategy
-            switch (this.settings.chunkStrategy) {
-                case 'sentence':
-                    units = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
-                    break;
-                case 'word':
-                    units = paragraph.match(/\S+/g) || [paragraph];
-                    break;
-                case 'character':
-                    units = paragraph.match(/.{1,100}/g) || [paragraph];
-                    break;
-            }
+            // Split into sentences using a more robust regex that handles common abbreviations
+            const sentences = paragraph.match(/[^.!?]+(?:[.!?]+(?:(?=[A-Z]|\s+|$)|(?=[a-z]+\.|$)))/g) || [paragraph];
             
             let currentChunk = '';
             
-            for (const unit of units) {
-                if (currentChunk.length + unit.length > this.settings.maxChunkLength) {
+            for (const sentence of sentences) {
+                const trimmedSentence = sentence.trim();
+                
+                // If a single sentence exceeds max length, split it at the last space before the limit
+                if (trimmedSentence.length > this.settings.maxChunkLength) {
                     if (currentChunk) {
                         chunks.push(currentChunk.trim());
+                        currentChunk = '';
                     }
-                    currentChunk = unit;
+                    
+                    let remainingSentence = trimmedSentence;
+                    while (remainingSentence.length > this.settings.maxChunkLength) {
+                        const lastSpace = remainingSentence.lastIndexOf(' ', this.settings.maxChunkLength);
+                        if (lastSpace === -1) {
+                            // No space found, force split at maxChunkLength
+                            chunks.push(remainingSentence.slice(0, this.settings.maxChunkLength).trim());
+                            remainingSentence = remainingSentence.slice(this.settings.maxChunkLength);
+                        } else {
+                            chunks.push(remainingSentence.slice(0, lastSpace).trim());
+                            remainingSentence = remainingSentence.slice(lastSpace + 1);
+                        }
+                    }
+                    if (remainingSentence) {
+                        currentChunk = remainingSentence;
+                    }
+                    continue;
+                }
+                
+                // Check if adding this sentence would exceed the chunk length
+                if (currentChunk.length + trimmedSentence.length + 1 > this.settings.maxChunkLength) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = trimmedSentence;
                 } else {
-                    currentChunk += (currentChunk ? ' ' : '') + unit;
+                    currentChunk += (currentChunk ? ' ' : '') + trimmedSentence;
                 }
             }
             
@@ -50,11 +64,10 @@ export class TextProcessor {
     /**
      * Generates a unique filename for saving audio
      * @param baseName Base name for the file (usually from the note title)
-     * @param index Chunk index for multi-chunk text
      * @returns Generated filename with timestamp
      */
-    generateAudioFilename(baseName: string, index: number): string {
+    generateAudioFilename(baseName: string): string {
         const timestamp = Date.now();
-        return `${baseName}_${timestamp}_${index}.wav`;
+        return `${baseName}_${timestamp}.wav`;
     }
 }

@@ -11,7 +11,7 @@ export interface KokoroTTSSettings {
 	
 	// Voice settings
 	selectedVoice: string;
-	language: string; // 'en-us' or 'en-gb'
+	language: string; // 'default', 'en-us', or 'en-gb'
 	
 	// Audio settings
 	autoPlay: boolean;
@@ -21,7 +21,6 @@ export interface KokoroTTSSettings {
 	
 	// Chunking settings
 	maxChunkLength: number;
-	chunkStrategy: 'sentence' | 'word' | 'character';
 	respectParagraphs: boolean;
 }
 
@@ -32,8 +31,8 @@ export const DEFAULT_SETTINGS: KokoroTTSSettings = {
 	backendPath: '',
 	serverPort: 7851,
 	
-	selectedVoice: 'af', // Default voice (Bella & Sarah mix)
-	language: 'en-us',
+	selectedVoice: 'f', // Default voice (Bella & Sarah mix)
+	language: 'default',
 	
 	autoPlay: true,
 	saveAudio: false,
@@ -41,7 +40,6 @@ export const DEFAULT_SETTINGS: KokoroTTSSettings = {
 	autoEmbed: false,
 	
 	maxChunkLength: 500,
-	chunkStrategy: 'sentence',
 	respectParagraphs: true
 };
 
@@ -162,20 +160,33 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 			.setName('Voice')
 			.setDesc('Select TTS voice')
 			.addDropdown(dropdown => dropdown
-				.addOption('af', 'Default (Bella & Sarah mix)')
-				.addOption('af_bella', 'Bella')
-				.addOption('af_sarah', 'Sarah')
-				.addOption('am_adam', 'Adam')
-				.addOption('am_michael', 'Michael')
-				.addOption('bf_emma', 'Emma')
-				.addOption('bf_isabella', 'Isabella')
-				.addOption('bm_george', 'George')
-				.addOption('bm_lewis', 'Lewis')
-				.addOption('af_nicole', 'Nicole')
-				.addOption('af_sky', 'Sky')
+				.addOption('f', 'Default (Bella & Sarah mix) [US]')
+				.addOption('f_bella', 'Bella [US]')
+				.addOption('f_sarah', 'Sarah [US]')
+				.addOption('f_adam', 'Adam [US]')
+				.addOption('f_michael', 'Michael [US]')
+				.addOption('f_emma', 'Emma [GB]')
+				.addOption('f_isabella', 'Isabella [GB]')
+				.addOption('f_george', 'George [GB]')
+				.addOption('f_lewis', 'Lewis [GB]')
+				.addOption('f_nicole', 'Nicole [US]')
+				.addOption('f_sky', 'Sky [US]')
 				.setValue(this.plugin.settings.selectedVoice)
 				.onChange(async (value) => {
 					this.plugin.settings.selectedVoice = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Language variant')
+			.setDesc('Override voice\'s suggested language variant')
+			.addDropdown(dropdown => dropdown
+				.addOption('default', 'Use voice\'s default')
+				.addOption('en-us', 'US English')
+				.addOption('en-gb', 'British English')
+				.setValue(this.plugin.settings.language)
+				.onChange(async (value) => {
+					this.plugin.settings.language = value;
 					await this.plugin.saveSettings();
 				}));
 
@@ -192,17 +203,29 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		// Save audio setting
+		const saveAudioSetting = new Setting(containerEl)
 			.setName('Save audio')
 			.setDesc('Save generated audio files')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.saveAudio)
 				.onChange(async (value) => {
 					this.plugin.settings.saveAudio = value;
+					// Show/hide dependent settings
+					if (value) {
+						audioFolderSetting.settingEl.show();
+						autoEmbedSetting.settingEl.show();
+					} else {
+						audioFolderSetting.settingEl.hide();
+						autoEmbedSetting.settingEl.hide();
+						// Disable auto-embed if saving is disabled
+						this.plugin.settings.autoEmbed = false;
+					}
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		// Audio folder setting (dependent on save audio)
+		const audioFolderSetting = new Setting(containerEl)
 			.setName('Audio folder')
 			.setDesc('Optional folder for audio files (leave blank to save in same folder as notes)')
 			.addText(text => text
@@ -213,7 +236,8 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		// Auto-embed setting (dependent on save audio)
+		const autoEmbedSetting = new Setting(containerEl)
 			.setName('Auto-embed')
 			.setDesc('Automatically embed saved audio in notes')
 			.addToggle(toggle => toggle
@@ -223,31 +247,24 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// Chunking Settings
-		containerEl.createEl('h3', {text: 'Text chunking'});
+		// Hide dependent settings if save audio is disabled
+		if (!this.plugin.settings.saveAudio) {
+			audioFolderSetting.settingEl.hide();
+			autoEmbedSetting.settingEl.hide();
+		}
+
+		// Text Processing Settings
+		containerEl.createEl('h3', {text: 'Text processing'});
 
 		new Setting(containerEl)
 			.setName('Maximum chunk length')
-			.setDesc('Maximum number of characters per chunk (100-2000)')
+			.setDesc('Maximum characters per chunk (engine limit: 500)')
 			.addSlider(slider => slider
-				.setLimits(100, 2000, 100)
+				.setLimits(100, 500, 50)
 				.setValue(this.plugin.settings.maxChunkLength)
 				.setDynamicTooltip()
 				.onChange(async (value) => {
 					this.plugin.settings.maxChunkLength = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Chunking strategy')
-			.setDesc('How to split text into chunks')
-			.addDropdown(dropdown => dropdown
-				.addOption('sentence', 'By sentences (recommended)')
-				.addOption('word', 'By words')
-				.addOption('character', 'By characters')
-				.setValue(this.plugin.settings.chunkStrategy)
-				.onChange(async (value: 'sentence' | 'word' | 'character') => {
-					this.plugin.settings.chunkStrategy = value;
 					await this.plugin.saveSettings();
 				}));
 

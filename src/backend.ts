@@ -1,6 +1,7 @@
 import { Notice } from 'obsidian';
 import { ChildProcess } from 'child_process';
 import { KokoroTTSSettings } from './settings';
+import { TextProcessor } from './text-processor';
 
 export class BackendManager {
     private ws: WebSocket | null = null;
@@ -9,10 +10,14 @@ export class BackendManager {
     private maxReconnectAttempts = 5;
     private reconnectTimeout = 1000;  // Start with 1 second
 
+    private textProcessor: TextProcessor;
+
     constructor(
         private settings: KokoroTTSSettings,
         private onStatusChange: () => void
-    ) {}
+    ) {
+        this.textProcessor = new TextProcessor(settings);
+    }
 
     get isConnected(): boolean {
         return this.ws?.readyState === WebSocket.OPEN;
@@ -95,7 +100,11 @@ export class BackendManager {
                 console.log('Disconnected from TTS backend');
                 this.ws = null;
                 this.onStatusChange();
-                new Notice('Kokoro TTS backend disconnected');
+                
+                // Only show disconnect notice if we were previously connected
+                if (this.reconnectAttempts > 0) {
+                    new Notice('Kokoro TTS backend disconnected');
+                }
 
                 // Try to reconnect if not shutting down
                 if (this.pythonProcess && this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -130,7 +139,10 @@ export class BackendManager {
                             new Notice('Generating speech...');
                             break;
                         case 'generated':
-                            new Notice('Speech generated');
+                            // Don't show individual chunk completion notices
+                            break;
+                        case 'session_stats':
+                            new Notice(response.message);
                             break;
                         case 'error':
                             new Notice(`Error: ${response.message}`);
@@ -197,35 +209,56 @@ export class BackendManager {
         }
     }
 
-    async speakText(text: string, savePath?: string): Promise<void> {
+    async speakText(chunks: string[], savePath?: string): Promise<void> {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             throw new Error('TTS backend not connected. Please start the backend in settings first.');
         }
 
+        // Start a new generation session
+        const sessionId = Date.now().toString();
         const command = {
-            action: 'speak',
-            text: text,
-            voice: this.settings.selectedVoice,
+            action: 'start_session',
+            session_id: sessionId,
+            total_chunks: chunks.length,
             save_path: savePath,
             autoplay: this.settings.autoPlay
         };
-
         this.ws.send(JSON.stringify(command));
 
-        // Wait for completion
-        await new Promise<void>((resolve, reject) => {
-            const handler = (event: MessageEvent) => {
-                const response = JSON.parse(event.data);
-                if (response.status === 'generated') {
-                    this.ws?.removeEventListener('message', handler);
-                    resolve();
-                } else if (response.status === 'error') {
-                    this.ws?.removeEventListener('message', handler);
-                    reject(new Error(response.message));
-                }
+        // Process each chunk
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i].trim();
+            if (!chunk) continue;
+
+            const isLastChunk = i === chunks.length - 1;
+            
+            const chunkCommand = {
+                action: 'speak',
+                session_id: sessionId,
+                text: chunk,
+                voice: this.settings.selectedVoice,
+                language: this.settings.language,
+                chunk_index: i,
+                is_last_chunk: isLastChunk
             };
-            this.ws?.addEventListener('message', handler);
-        });
+
+            this.ws.send(JSON.stringify(chunkCommand));
+
+            // Wait for completion of each chunk
+            await new Promise<void>((resolve, reject) => {
+                const handler = (event: MessageEvent) => {
+                    const response = JSON.parse(event.data);
+                    if (response.status === 'generated') {
+                        this.ws?.removeEventListener('message', handler);
+                        resolve();
+                    } else if (response.status === 'error') {
+                        this.ws?.removeEventListener('message', handler);
+                        reject(new Error(response.message));
+                    }
+                };
+                this.ws?.addEventListener('message', handler);
+            });
+        }
     }
 
     stopSpeech(): void {

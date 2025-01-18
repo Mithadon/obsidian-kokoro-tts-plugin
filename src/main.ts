@@ -160,67 +160,62 @@ export default class KokoroTTSPlugin extends Plugin {
 			const chunks = this.textProcessor.splitIntoChunks(text);
 			console.log(`Split text into ${chunks.length} chunks`);
 
-			// Process each chunk
-			for (let i = 0; i < chunks.length; i++) {
-				const chunk = chunks[i];
+			// Prepare save path for the final audio file
+			let savePath: string | undefined;
+			let relativePath: string | undefined;
+			
+			if (this.settings.saveAudio) {
+				const fileName = this.textProcessor.generateAudioFilename(activeFile.basename);
 				
-				// Prepare save path
-				let savePath: string | undefined;
-				let relativePath: string | undefined;
+				// Determine save location
+				let saveFolder: string;
+				let relativeFolder: string;
 				
-				if (this.settings.saveAudio) {
-					const fileName = this.textProcessor.generateAudioFilename(activeFile.basename, i);
+				if (this.settings.audioFolder) {
+					// Use specified audio folder
+					saveFolder = path.join(
+						(this.app.vault.adapter as any).getBasePath(),
+						this.settings.audioFolder
+					);
+					relativeFolder = this.settings.audioFolder;
 					
-					// Determine save location
-					let saveFolder: string;
-					let relativeFolder: string;
+					// Create audio folder if it doesn't exist
+					await this.app.vault.adapter.mkdir(this.settings.audioFolder);
+				} else {
+					// Save in the same folder as the note
+					const parentFolder = activeFile.parent?.path || '';
+					saveFolder = path.join(
+						(this.app.vault.adapter as any).getBasePath(),
+						parentFolder
+					);
+					relativeFolder = parentFolder;
 					
-					if (this.settings.audioFolder) {
-						// Use specified audio folder
-						saveFolder = path.join(
-							(this.app.vault.adapter as any).getBasePath(),
-							this.settings.audioFolder
-						);
-						relativeFolder = this.settings.audioFolder;
-						
-						// Create audio folder if it doesn't exist
-						await this.app.vault.adapter.mkdir(this.settings.audioFolder);
-					} else {
-						// Save in the same folder as the note
-						const parentFolder = activeFile.parent?.path || '';
-						saveFolder = path.join(
-							(this.app.vault.adapter as any).getBasePath(),
-							parentFolder
-						);
-						relativeFolder = parentFolder;
-						
-						// Ensure parent folder exists
-						if (parentFolder) {
-							await this.app.vault.adapter.mkdir(parentFolder);
-						}
+					// Ensure parent folder exists
+					if (parentFolder) {
+						await this.app.vault.adapter.mkdir(parentFolder);
 					}
-					
-					// Create full paths (use forward slashes for both Windows and Unix)
-					savePath = saveFolder + '/' + fileName;
-					relativePath = relativeFolder ? relativeFolder + '/' + fileName : fileName;
-					
-					// Log paths for debugging
-					console.log('Save path:', savePath);
-					console.log('Relative path:', relativePath);
-					console.log('Base path:', (this.app.vault.adapter as any).getBasePath());
 				}
+				
+				// Create full paths (use forward slashes for both Windows and Unix)
+				savePath = saveFolder + '/' + fileName;
+				relativePath = relativeFolder ? relativeFolder + '/' + fileName : fileName;
+				
+				// Log paths for debugging
+				console.log('Save path:', savePath);
+				console.log('Relative path:', relativePath);
+				console.log('Base path:', (this.app.vault.adapter as any).getBasePath());
+			}
 
-				// Send speak command and wait for completion
-				await this.backend.speakText(chunk, savePath);
+			// Process all chunks in a single session
+			await this.backend.speakText(chunks, savePath);
 
-				// If audio was saved and auto-embed is enabled, embed it in the note
-				if (relativePath && this.settings.autoEmbed) {
-					const editor = this.app.workspace.activeEditor?.editor;
-					if (editor) {
-						const cursor = editor.getCursor();
-						const embedText = `\n![[${relativePath}]]\n`;
-						editor.replaceRange(embedText, cursor);
-					}
+			// If audio was saved and auto-embed is enabled, embed it in the note
+			if (relativePath && this.settings.autoEmbed) {
+				const editor = this.app.workspace.activeEditor?.editor;
+				if (editor) {
+					const cursor = editor.getCursor();
+					const embedText = `\n![[${relativePath}]]\n`;
+					editor.replaceRange(embedText, cursor);
 				}
 			}
 

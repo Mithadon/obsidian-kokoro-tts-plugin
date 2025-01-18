@@ -4,6 +4,12 @@ This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quali
 
 I have only tested it in Windows 11, and it requires manual installation as it works with a locally hosted Kokoro TTS backend. The backend will use CUDA if available, or fallback to CPU.
 
+NEW IN 1.2:
+- Force US/GB variant (very little impact)
+- Fixed audio chunk concatenation
+- Added message with generation stats (generation's total characters, chunks, time, and chunks/second)
+- Various other fixes
+
 ## Features
 
 - Multiple voice options (Bella, Sarah, Adam, Michael, Emma, Isabella, George, Lewis, Nicole, Sky)
@@ -15,10 +21,8 @@ I have only tested it in Windows 11, and it requires manual installation as it w
 
 ## To do
 
-- Concatenate produced audio chunks before saving and embedding audio files
-- Fix voice selection based on syntax (i.e. send text in quotes as a separate request)
-- Remove the *asterisks* emphasis option, which is not supported
-- Check max context for Kokoro-TTS, make sure the slider numbers are adequate
+- Fix voice selection based on syntax. This will require sending distinct requests to the engine, adding menu options (i.e. quotations voice, italics voice),
+and updating the chunk concatenation logic.
 
 ## Prerequisites
 
