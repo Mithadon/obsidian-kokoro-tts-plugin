@@ -8,9 +8,10 @@ NEW IN 1.2:
 - Force US/GB variant (very little impact)
 - Fixed audio chunk concatenation
 - Added message with generation stats (generation's total characters, chunks, time, and chunks/second)
-- Various other fixes
+- Tested on CPU (50-100 character/second) and CUDA, Kokoro is astonishingly fast (>1500 character/second on 4090).
 
-(generation-stats.png)[test]
+ ![](generation-stats.png)
+
 ## Features
 
 - Multiple voice options (Bella, Sarah, Adam, Michael, Emma, Isabella, George, Lewis, Nicole, Sky)
