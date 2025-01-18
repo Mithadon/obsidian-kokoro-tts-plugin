@@ -22,12 +22,16 @@ I have only tested it in Windows 11, and it requires manual installation as it w
 
 ## Prerequisites
 
-1. Python 3.8 or higher
+1. Python Environment:
+
+   Note: The plugin requires NumPy < 2.0.0 for compatibility with PyTorch.
+
 2. espeak-ng 1.51 (required for phonemization)
    - Windows: 
      * Download espeak-ng-1.51.msi from [espeak-ng releases](https://github.com/espeak-ng/espeak-ng/releases/tag/1.51)
      * Install the MSI package
    Note: Version 1.51 is required. Other versions may not work correctly.
+
 3. Kokoro TTS model and voices
    - Download model file (`kokoro-v0_19.pth`) and voice files from [Kokoro-82M repository](https://huggingface.co/hexgrad/Kokoro-82M)
 
@@ -44,6 +48,11 @@ I have only tested it in Windows 11, and it requires manual installation as it w
    - `requirements.txt`
 3. Install Python dependencies:
    ```bash
+   # If using conda (recommended):
+   conda activate kokoro-tts
+   pip install -r requirements.txt
+
+   # If using system Python:
    cd YOUR_VAULT/.obsidian/plugins/kokoro-tts
    pip install -r requirements.txt
    ```

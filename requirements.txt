@@ -1,9 +1,10 @@
 phonemizer
-torch
+torch==2.5.1
+torchvision==0.20.1
 transformers
 scipy
 munch
 sounddevice
 soundfile
-numpy
+numpy<2.0.0
 websockets
