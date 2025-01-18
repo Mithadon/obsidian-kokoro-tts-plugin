@@ -10,6 +10,7 @@ NEW IN 1.2:
 - Added message with generation stats (generation's total characters, chunks, time, and chunks/second)
 - Various other fixes
 
+(generation-stats.png)[test]
 ## Features
 
 - Multiple voice options (Bella, Sarah, Adam, Michael, Emma, Isabella, George, Lewis, Nicole, Sky)
