@@ -22,7 +22,7 @@ NEW IN 1.3:
 Here is a demonstration of the inline generation. This particular audio generated at 250 characters per second, despite switching between every available voice.
 
 
-<audio src="res/quotes-example.wav" controls></audio>
+[Listen to the demo](res/quotes-example.wav)
 ```markdown
 This is the default narrator voice.
 
@@ -68,8 +68,8 @@ NEW IN 1.2:
 
 ## To do
 
-- Fix voice selection based on syntax. This will require sending distinct requests to the engine, adding menu options (i.e. quotations voice, italics voice),
-and updating the chunk concatenation logic.
+- Add the possibility of merging voices at inference
+- Add custom syntax options for saved audio file names
 
 ## Prerequisites
 
