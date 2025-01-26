@@ -209,7 +209,7 @@ export class BackendManager {
         }
     }
 
-    async speakText(chunks: string[], savePath?: string): Promise<void> {
+    async speakText(chunks: { text: string; voice: string }[], savePath?: string): Promise<void> {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             throw new Error('TTS backend not connected. Please start the backend in settings first.');
         }
@@ -227,16 +227,16 @@ export class BackendManager {
 
         // Process each chunk
         for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i].trim();
-            if (!chunk) continue;
+            const chunk = chunks[i];
+            if (!chunk.text.trim()) continue;
 
             const isLastChunk = i === chunks.length - 1;
             
             const chunkCommand = {
                 action: 'speak',
                 session_id: sessionId,
-                text: chunk,
-                voice: this.settings.selectedVoice,
+                text: chunk.text.trim(),
+                voice: chunk.voice,
                 language: this.settings.language,
                 chunk_index: i,
                 is_last_chunk: isLastChunk

@@ -4,6 +4,46 @@ This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quali
 
 I have only tested it in Windows 11, and it requires manual installation as it works with a locally hosted Kokoro TTS backend. The backend will use CUDA if available, or fallback to CPU.
 
+NEW IN 1.3:
+- Added inline voice selection with `ktts` prefix
+- Added special voice settings for quoted and emphasized text
+- Improved quote handling:
+  * Support for all types of quotation marks (", ", ")
+  * Fixed processing of multiple quoted sections on the same line
+  * Better handling of quotes within sentences
+- Added voice selection for emphasized text (within asterisks)
+  * Text between * marks is now spoken without saying "asterisk"
+  * Can assign a different voice for emphasized text in settings
+- New Settings:
+  * Special text voices section for configuring distinct voices
+  * Toggle for enabling/disabling distinct voices feature
+  * Separate voice selection for quoted and emphasized text
+
+Here is a demonstration of the inline generation. This particular audio generated at 250 characters per second, despite switching between every available voice.
+
+
+<audio src="res/quotes-example.wav" controls></audio>
+```markdown
+This is the default narrator voice.
+
+kttsbella"Hi, I'm Bella from the US!" kttsemma"And I'm Emma from the UK!"
+
+kttssarah"Sarah here, also from the US." kttsisabella"Isabella speaking, from the UK!"
+
+kttsadam"Adam here, representing the US male voices." kttsgeorge"George here, from the UK!"
+
+kttsmichael"Michael speaking, another US voice." kttslewis"And Lewis, another UK voice!"
+
+kttsnicole"Nicole here!" kttssky"And Sky, wrapping up our voice demo!"
+
+*This text will use the emphasized voice setting*
+
+"This quoted text will use the default quote voice setting"
+
+kttsbella"You can also have multiple voices in one paragraph!" kttsemma"Indeed you can!" And back to the narrator.
+```
+
+
 NEW IN 1.2:
 - Force US/GB variant (very little impact)
 - Fixed audio chunk concatenation
@@ -16,6 +56,11 @@ NEW IN 1.2:
 
 - Multiple voice options (Bella, Sarah, Adam, Michael, Emma, Isabella, George, Lewis, Nicole, Sky)
 - Support for both American and British English
+- Advanced voice control:
+  * Inline voice selection with `ktts` prefix
+  * Distinct voices for quoted and emphasized text
+  * Support for all types of quotation marks
+  * Emphasis markers (*text*) without speaking the markers
 - Text selection and full note reading
 - Audio file saving and auto-embedding
 - Configurable text processing (codeblocks, emphasis)
@@ -79,6 +124,8 @@ and updating the chunk concatenation logic.
    - Audio settings (auto-play, save, embed)
    - Text processing options
 
+<img src="res/settings-1.png" alt="Settings Menu" width="500"/>
+
 ### File Locations
 
 The plugin expects the following structure:
@@ -109,6 +156,38 @@ Access these commands through:
 - Command Palette (Ctrl/Cmd + P)
 - Custom hotkeys (configurable in Settings → Hotkeys)
 - Context menu (right-click on text)
+
+<img src="res/contextual-menu.png" alt="Context Menu" width="300"/>
+
+### Special Text Voices
+
+The plugin can use different voices for:
+- Quoted text (any type of quotation marks)
+- Emphasized text (text between asterisks)
+
+Configure these options in Settings → Kokoro TTS → Special text voices.
+
+<img src="res/settings-2.png" alt="Special Text Voices Settings" width="500"/>
+
+### Inline Voice Selection
+
+The plugin supports dynamic voice selection using inline codes:
+
+- Use `ktts` followed by a voice name before quoted text:
+  ```
+  kttsbella"Hello everyone!" → Spoken by Bella
+  kttsemma"Lovely weather!" → Spoken by Emma
+  kttsadam"Hi there!" → Spoken by Adam
+  ```
+
+Available voice codes:
+- US Voices: bella, sarah, adam, michael, nicole, sky
+- GB Voices: emma, isabella, george, lewis
+
+Notes:
+- Any unrecognized voice code will use the default selected voice
+- This feature works independently of the "Special text voices" settings
+- Voice codes are case-sensitive
 
 ### Audio Files
 

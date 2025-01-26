@@ -156,9 +156,14 @@ export default class KokoroTTSPlugin extends Plugin {
 				throw new Error('No active file');
 			}
 
-			// Split into chunks
+			// Split into chunks with voice information
 			const chunks = this.textProcessor.splitIntoChunks(text);
 			console.log(`Split text into ${chunks.length} chunks`);
+
+			// Log voice assignments if distinct voices are enabled
+			if (this.settings.useDistinctVoices) {
+				console.log('Using distinct voices for special text');
+			}
 
 			// Prepare save path for the final audio file
 			let savePath: string | undefined;
@@ -206,8 +211,11 @@ export default class KokoroTTSPlugin extends Plugin {
 				console.log('Base path:', (this.app.vault.adapter as any).getBasePath());
 			}
 
-			// Process all chunks in a single session
-			await this.backend.speakText(chunks, savePath);
+			// Process all chunks in a single session with their assigned voices
+			await this.backend.speakText(chunks.map(chunk => ({
+				text: chunk.text,
+				voice: chunk.voice || this.settings.selectedVoice
+			})), savePath);
 
 			// If audio was saved and auto-embed is enabled, embed it in the note
 			if (relativePath && this.settings.autoEmbed) {

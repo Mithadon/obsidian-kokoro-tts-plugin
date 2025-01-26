@@ -13,6 +13,11 @@ export interface KokoroTTSSettings {
 	selectedVoice: string;
 	language: string; // 'default', 'en-us', or 'en-gb'
 	
+	// Special text voice settings
+	useDistinctVoices: boolean;
+	quotedTextVoice: string;
+	asteriskTextVoice: string;
+	
 	// Audio settings
 	autoPlay: boolean;
 	saveAudio: boolean;
@@ -33,6 +38,10 @@ export const DEFAULT_SETTINGS: KokoroTTSSettings = {
 	
 	selectedVoice: 'f', // Default voice (Bella & Sarah mix)
 	language: 'default',
+	
+	useDistinctVoices: false,
+	quotedTextVoice: 'f', // Default to same as main voice
+	asteriskTextVoice: 'f', // Default to same as main voice
 	
 	autoPlay: true,
 	saveAudio: false,
@@ -251,6 +260,105 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 		if (!this.plugin.settings.saveAudio) {
 			audioFolderSetting.settingEl.hide();
 			autoEmbedSetting.settingEl.hide();
+		}
+
+		// Special Text Voice Settings
+		containerEl.createEl('h3', {text: 'Special text voices'});
+
+		// Add explanation of inline voice selection
+		const inlineVoiceInfo = containerEl.createEl('div', {
+			cls: 'setting-item-description',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: 'You can specify voices for quoted text using the ktts prefix:',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: '- kttsbella"Hello" → Uses Bella\'s voice',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: '- kttsemma"Hi there" → Uses Emma\'s voice',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: 'Available voice codes:',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: '- US voices: bella, sarah, adam, michael, nicole, sky',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: '- GB voices: emma, isabella, george, lewis',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: 'Any unrecognized voice code (e.g., kttsxyz) will use the default selected voice.',
+		});
+
+		containerEl.createEl('br');
+
+		const useDistinctVoicesSetting = new Setting(containerEl)
+			.setName('Use distinct voices')
+			.setDesc('Enable different voices for quoted and emphasized text')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.useDistinctVoices)
+				.onChange(async (value) => {
+					this.plugin.settings.useDistinctVoices = value;
+					// Show/hide dependent settings
+					if (value) {
+						quotedTextVoiceSetting.settingEl.show();
+						asteriskTextVoiceSetting.settingEl.show();
+					} else {
+						quotedTextVoiceSetting.settingEl.hide();
+						asteriskTextVoiceSetting.settingEl.hide();
+					}
+					await this.plugin.saveSettings();
+				}));
+
+		// Voice for quoted text
+		const quotedTextVoiceSetting = new Setting(containerEl)
+			.setName('Quoted text voice')
+			.setDesc('Voice used for text within quotation marks')
+			.addDropdown(dropdown => dropdown
+				.addOption('f', 'Default (Bella & Sarah mix) [US]')
+				.addOption('f_bella', 'Bella [US]')
+				.addOption('f_sarah', 'Sarah [US]')
+				.addOption('f_adam', 'Adam [US]')
+				.addOption('f_michael', 'Michael [US]')
+				.addOption('f_emma', 'Emma [GB]')
+				.addOption('f_isabella', 'Isabella [GB]')
+				.addOption('f_george', 'George [GB]')
+				.addOption('f_lewis', 'Lewis [GB]')
+				.addOption('f_nicole', 'Nicole [US]')
+				.addOption('f_sky', 'Sky [US]')
+				.setValue(this.plugin.settings.quotedTextVoice)
+				.onChange(async (value) => {
+					this.plugin.settings.quotedTextVoice = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Voice for asterisk text
+		const asteriskTextVoiceSetting = new Setting(containerEl)
+			.setName('Emphasized text voice')
+			.setDesc('Voice used for text within asterisks')
+			.addDropdown(dropdown => dropdown
+				.addOption('f', 'Default (Bella & Sarah mix) [US]')
+				.addOption('f_bella', 'Bella [US]')
+				.addOption('f_sarah', 'Sarah [US]')
+				.addOption('f_adam', 'Adam [US]')
+				.addOption('f_michael', 'Michael [US]')
+				.addOption('f_emma', 'Emma [GB]')
+				.addOption('f_isabella', 'Isabella [GB]')
+				.addOption('f_george', 'George [GB]')
+				.addOption('f_lewis', 'Lewis [GB]')
+				.addOption('f_nicole', 'Nicole [US]')
+				.addOption('f_sky', 'Sky [US]')
+				.setValue(this.plugin.settings.asteriskTextVoice)
+				.onChange(async (value) => {
+					this.plugin.settings.asteriskTextVoice = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Hide voice settings if distinct voices are disabled
+		if (!this.plugin.settings.useDistinctVoices) {
+			quotedTextVoiceSetting.settingEl.hide();
+			asteriskTextVoiceSetting.settingEl.hide();
 		}
 
 		// Text Processing Settings
