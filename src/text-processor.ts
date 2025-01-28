@@ -25,16 +25,36 @@ export class TextProcessor {
 
     // Voice name mapping
     private static readonly VOICE_MAP: { [key: string]: string } = {
-        'bella': 'f_bella',
-        'sarah': 'f_sarah',
-        'adam': 'm_adam',
-        'michael': 'm_michael',
-        'emma': 'f_emma',
-        'isabella': 'f_isabella',
-        'george': 'm_george',
-        'lewis': 'm_lewis',
-        'nicole': 'f_nicole',
-        'sky': 'f_sky'
+        // American Female voices
+        'alloy': 'af_alloy',
+        'aoede': 'af_aoede',
+        'bella': 'af_bella',
+        'jessica': 'af_jessica',
+        'kore': 'af_kore',
+        'nicole': 'af_nicole',
+        'nova': 'af_nova',
+        'river': 'af_river',
+        'sarah': 'af_sarah',
+        'sky': 'af_sky',
+        // American Male voices
+        'adam': 'am_adam',
+        'echo': 'am_echo',
+        'eric': 'am_eric',
+        'fenrir': 'am_fenrir',
+        'liam': 'am_liam',
+        'michael': 'am_michael',
+        'onyx': 'am_onyx',
+        'puck': 'am_puck',
+        // British Female voices
+        'alice': 'bf_alice',
+        'emma': 'bf_emma',
+        'isabella': 'bf_isabella',
+        'lily': 'bf_lily',
+        // British Male voices
+        'daniel': 'bm_daniel',
+        'fable': 'bm_fable',
+        'george': 'bm_george',
+        'lewis': 'bm_lewis'
     };
 
     constructor(private settings: KokoroTTSSettings) {}
@@ -61,8 +81,8 @@ export class TextProcessor {
 
         // First pass: collect all voice assignments
         while ((match = kttsRegex.exec(processedText)) !== null) {
-            const voiceName = match[1].toLowerCase();
-            const voice = TextProcessor.VOICE_MAP[voiceName] || this.settings.selectedVoice;
+            const voiceCode = match[1].toLowerCase();
+            const voice = this.getVoiceFromCode(voiceCode);
             
             voiceAssignments.push({
                 start: match.index - totalOffset,
@@ -81,6 +101,39 @@ export class TextProcessor {
         result = processedResult;
 
         return { text: result, voiceAssignments };
+    }
+
+    /**
+     * Get voice from code, handling regular voices
+     */
+    private getVoiceFromCode(code: string): string {
+        // Handle empty code
+        if (!code) {
+            return this.settings.selectedVoice;
+        }
+
+        // Handle US Female voices
+        if (['alloy', 'aoede', 'bella', 'jessica', 'kore', 'nicole', 'nova', 'river', 'sarah', 'sky'].includes(code)) {
+            return `af_${code}`;
+        }
+
+        // Handle US Male voices
+        if (['adam', 'echo', 'eric', 'fenrir', 'liam', 'michael', 'onyx', 'puck'].includes(code)) {
+            return `am_${code}`;
+        }
+
+        // Handle UK Female voices
+        if (['alice', 'emma', 'isabella', 'lily'].includes(code)) {
+            return `bf_${code}`;
+        }
+
+        // Handle UK Male voices
+        if (['daniel', 'fable', 'george', 'lewis'].includes(code)) {
+            return `bm_${code}`;
+        }
+
+        // If code not recognized, use default voice
+        return this.settings.selectedVoice;
     }
 
     /**

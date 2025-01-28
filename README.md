@@ -1,8 +1,21 @@
 # Kokoro TTS Plugin for Obsidian
 
-This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quality text-to-speech with multiple voice options. It uses the lightweight Kokoro v0.19 model which offers natural-sounding speech in both American and British English.
+This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quality text-to-speech with multiple voice options. It uses the lightweight Kokoro v1.0 model which offers natural-sounding speech in both American and British English, with an expanded set of 26+ voices.
 
 I have only tested it in Windows 11, and it requires manual installation as it works with a locally hosted Kokoro TTS backend. The backend will use CUDA if available, or fallback to CPU.
+
+NEW IN 2.0:
+- Updated to support Kokoro v1.0
+- Expanded voice selection with 26+ voices:
+  * American Female voices: Alloy, Aoede, Bella, Jessica, Kore, Nicole, Nova, River, Sarah, Sky
+  * American Male voices: Adam, Echo, Eric, Fenrir, Liam, Michael, Onyx, Puck
+  * British Female voices: Alice, Emma, Isabella, Lily
+  * British Male voices: Daniel, Fable, George, Lewis
+- Improved voice handling:
+  * Each voice now has its native language variant built-in
+  * Removed manual language variant selection
+  * Updated voice selection UI with clear categorization
+
 
 NEW IN 1.3:
 - Added inline voice selection with `ktts` prefix
@@ -20,7 +33,6 @@ NEW IN 1.3:
   * Separate voice selection for quoted and emphasized text
 
 Here is a demonstration of the inline generation. This particular audio generated at 250 characters per second, despite switching between every available voice.
-
 
 [Listen to the demo](res/quotes-example.wav)
 ```markdown
@@ -54,8 +66,11 @@ NEW IN 1.2:
 
 ## Features
 
-- Multiple voice options (Bella, Sarah, Adam, Michael, Emma, Isabella, George, Lewis, Nicole, Sky)
-- Support for both American and British English
+- Extensive voice selection:
+  * 10 American Female voices
+  * 8 American Male voices
+  * 4 British Female voices
+  * 4 British Male voices
 - Advanced voice control:
   * Inline voice selection with `ktts` prefix
   * Distinct voices for quoted and emphasized text
@@ -66,25 +81,20 @@ NEW IN 1.2:
 - Configurable text processing (codeblocks, emphasis)
 - Simple interface with keyboard shortcuts and context menu
 
-## To do
-
-- Add the possibility of merging voices at inference
-- Add custom syntax options for saved audio file names
-
 ## Prerequisites
 
 1. Python Environment:
-
    Note: The plugin requires NumPy < 2.0.0 for compatibility with PyTorch.
 
 2. espeak-ng 1.51 (required for phonemization)
    - Windows: 
      * Download espeak-ng-1.51.msi from [espeak-ng releases](https://github.com/espeak-ng/espeak-ng/releases/tag/1.51)
      * Install the MSI package
+     * Make sure that the paths in kokoro_backend.py point to your installation
    Note: Version 1.51 is required. Other versions may not work correctly.
 
 3. Kokoro TTS model and voices
-   - Download model file (`kokoro-v0_19.pth`) and voice files from [Kokoro-82M repository](https://huggingface.co/hexgrad/Kokoro-82M)
+   - Download model file and voice files from [Kokoro-82M repository](https://huggingface.co/hexgrad/Kokoro-82M)
 
 ## Installation
 
@@ -116,7 +126,7 @@ NEW IN 1.2:
 1. Open Settings → Kokoro TTS
 2. Configure the required paths:
    - Python executable path (e.g., `python` or full path to Python)
-   - Model path: Full path to `kokoro-v0_19.pth`
+   - Model path: Full path to the Kokoro model file
    - Voices path: Full path to the directory containing voice files
    - Backend script path: Path to `kokoro_backend.py` (default is in plugin directory)
 3. Configure optional settings:
@@ -181,8 +191,10 @@ The plugin supports dynamic voice selection using inline codes:
   ```
 
 Available voice codes:
-- US Voices: bella, sarah, adam, michael, nicole, sky
-- GB Voices: emma, isabella, george, lewis
+- US Female voices: alloy, aoede, bella, jessica, kore, nicole, nova, river, sarah, sky
+- US Male voices: adam, echo, eric, fenrir, liam, michael, onyx, puck
+- UK Female voices: alice, emma, isabella, lily
+- UK Male voices: daniel, fable, george, lewis
 
 Notes:
 - Any unrecognized voice code will use the default selected voice
@@ -197,7 +209,6 @@ If audio saving is enabled:
 - Files can be automatically embedded in notes at the cursor position
 - Standard Obsidian audio player is used for playback
 - Use the "Stop Speech" command or button to stop playback
-
 
 ### Troubleshooting
 

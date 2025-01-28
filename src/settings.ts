@@ -11,7 +11,7 @@ export interface KokoroTTSSettings {
 	
 	// Voice settings
 	selectedVoice: string;
-	language: string; // 'default', 'en-us', or 'en-gb'
+	speed: number;
 	
 	// Special text voice settings
 	useDistinctVoices: boolean;
@@ -27,6 +27,8 @@ export interface KokoroTTSSettings {
 	// Chunking settings
 	maxChunkLength: number;
 	respectParagraphs: boolean;
+	trimSilence: boolean;
+	trimAmount: number;  // Amount in seconds to trim from start/end
 }
 
 export const DEFAULT_SETTINGS: KokoroTTSSettings = {
@@ -36,12 +38,12 @@ export const DEFAULT_SETTINGS: KokoroTTSSettings = {
 	backendPath: '',
 	serverPort: 7851,
 	
-	selectedVoice: 'f', // Default voice (Bella & Sarah mix)
-	language: 'default',
+	selectedVoice: 'af_bella', // Default voice
+	speed: 1.0, // Default speed
 	
 	useDistinctVoices: false,
-	quotedTextVoice: 'f', // Default to same as main voice
-	asteriskTextVoice: 'f', // Default to same as main voice
+	quotedTextVoice: 'af_bella', // Default to same as main voice
+	asteriskTextVoice: 'af_bella', // Default to same as main voice
 	
 	autoPlay: true,
 	saveAudio: false,
@@ -49,7 +51,9 @@ export const DEFAULT_SETTINGS: KokoroTTSSettings = {
 	autoEmbed: false,
 	
 	maxChunkLength: 500,
-	respectParagraphs: true
+	respectParagraphs: true,
+	trimSilence: false,
+	trimAmount: 0.1  // Default to 0.1 seconds
 };
 
 export class KokoroTTSSettingTab extends PluginSettingTab {
@@ -166,38 +170,68 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 		containerEl.createEl('h3', {text: 'Voice settings'});
 
 		new Setting(containerEl)
-			.setName('Voice')
-			.setDesc('Select TTS voice')
-			.addDropdown(dropdown => dropdown
-				.addOption('f', 'Default (Bella & Sarah mix) [US]')
-				.addOption('f_bella', 'Bella [US]')
-				.addOption('f_sarah', 'Sarah [US]')
-				.addOption('f_adam', 'Adam [US]')
-				.addOption('f_michael', 'Michael [US]')
-				.addOption('f_emma', 'Emma [GB]')
-				.addOption('f_isabella', 'Isabella [GB]')
-				.addOption('f_george', 'George [GB]')
-				.addOption('f_lewis', 'Lewis [GB]')
-				.addOption('f_nicole', 'Nicole [US]')
-				.addOption('f_sky', 'Sky [US]')
-				.setValue(this.plugin.settings.selectedVoice)
+			.setName('Speech speed')
+			.setDesc('Adjust the speed of speech (0.5 = half speed, 2.0 = double speed)')
+			.addSlider(slider => slider
+				.setLimits(0.5, 2.0, 0.1)
+				.setValue(this.plugin.settings.speed)
+				.setDynamicTooltip()
 				.onChange(async (value) => {
-					this.plugin.settings.selectedVoice = value;
+					this.plugin.settings.speed = value;
 					await this.plugin.saveSettings();
 				}));
 
+		containerEl.createEl('h4', {text: 'Voice Selection'});
+
+		const addVoiceOptions = (dropdown: any) => {
+			// Add regular voices
+			dropdown
+				// American Female voices
+				.addOption('af_alloy', 'Alloy [US Female]')
+				.addOption('af_aoede', 'Aoede [US Female]')
+				.addOption('af_bella', 'Bella [US Female]')
+				.addOption('af_jessica', 'Jessica [US Female]')
+				.addOption('af_kore', 'Kore [US Female]')
+				.addOption('af_nicole', 'Nicole [US Female]')
+				.addOption('af_nova', 'Nova [US Female]')
+				.addOption('af_river', 'River [US Female]')
+				.addOption('af_sarah', 'Sarah [US Female]')
+				.addOption('af_sky', 'Sky [US Female]')
+				// American Male voices
+				.addOption('am_adam', 'Adam [US Male]')
+				.addOption('am_echo', 'Echo [US Male]')
+				.addOption('am_eric', 'Eric [US Male]')
+				.addOption('am_fenrir', 'Fenrir [US Male]')
+				.addOption('am_liam', 'Liam [US Male]')
+				.addOption('am_michael', 'Michael [US Male]')
+				.addOption('am_onyx', 'Onyx [US Male]')
+				.addOption('am_puck', 'Puck [US Male]')
+				// British Female voices
+				.addOption('bf_alice', 'Alice [UK Female]')
+				.addOption('bf_emma', 'Emma [UK Female]')
+				.addOption('bf_isabella', 'Isabella [UK Female]')
+				.addOption('bf_lily', 'Lily [UK Female]')
+				// British Male voices
+				.addOption('bm_daniel', 'Daniel [UK Male]')
+				.addOption('bm_fable', 'Fable [UK Male]')
+				.addOption('bm_george', 'George [UK Male]')
+				.addOption('bm_lewis', 'Lewis [UK Male]');
+
+			return dropdown;
+		};
+
 		new Setting(containerEl)
-			.setName('Language variant')
-			.setDesc('Override voice\'s suggested language variant')
-			.addDropdown(dropdown => dropdown
-				.addOption('default', 'Use voice\'s default')
-				.addOption('en-us', 'US English')
-				.addOption('en-gb', 'British English')
-				.setValue(this.plugin.settings.language)
-				.onChange(async (value) => {
-					this.plugin.settings.language = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName('Voice')
+			.setDesc('Select TTS voice or a voice mix preset')
+			.addDropdown(dropdown => {
+				addVoiceOptions(dropdown);
+				return dropdown
+					.setValue(this.plugin.settings.selectedVoice)
+					.onChange(async (value) => {
+						this.plugin.settings.selectedVoice = value;
+						await this.plugin.saveSettings();
+					});
+			});
 
 		// Audio Settings
 		containerEl.createEl('h3', {text: 'Audio settings'});
@@ -282,10 +316,16 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 			text: 'Available voice codes:',
 		});
 		inlineVoiceInfo.createEl('p', {
-			text: '- US voices: bella, sarah, adam, michael, nicole, sky',
+			text: '- US Female voices: alloy, aoede, bella, jessica, kore, nicole, nova, river, sarah, sky',
 		});
 		inlineVoiceInfo.createEl('p', {
-			text: '- GB voices: emma, isabella, george, lewis',
+			text: '- US Male voices: adam, echo, eric, fenrir, liam, michael, onyx, puck',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: '- UK Female voices: alice, emma, isabella, lily',
+		});
+		inlineVoiceInfo.createEl('p', {
+			text: '- UK Male voices: daniel, fable, george, lewis',
 		});
 		inlineVoiceInfo.createEl('p', {
 			text: 'Any unrecognized voice code (e.g., kttsxyz) will use the default selected voice.',
@@ -315,45 +355,29 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 		const quotedTextVoiceSetting = new Setting(containerEl)
 			.setName('Quoted text voice')
 			.setDesc('Voice used for text within quotation marks')
-			.addDropdown(dropdown => dropdown
-				.addOption('f', 'Default (Bella & Sarah mix) [US]')
-				.addOption('f_bella', 'Bella [US]')
-				.addOption('f_sarah', 'Sarah [US]')
-				.addOption('f_adam', 'Adam [US]')
-				.addOption('f_michael', 'Michael [US]')
-				.addOption('f_emma', 'Emma [GB]')
-				.addOption('f_isabella', 'Isabella [GB]')
-				.addOption('f_george', 'George [GB]')
-				.addOption('f_lewis', 'Lewis [GB]')
-				.addOption('f_nicole', 'Nicole [US]')
-				.addOption('f_sky', 'Sky [US]')
-				.setValue(this.plugin.settings.quotedTextVoice)
-				.onChange(async (value) => {
-					this.plugin.settings.quotedTextVoice = value;
-					await this.plugin.saveSettings();
-				}));
+			.addDropdown(dropdown => {
+				addVoiceOptions(dropdown);
+				return dropdown
+					.setValue(this.plugin.settings.quotedTextVoice)
+					.onChange(async (value) => {
+						this.plugin.settings.quotedTextVoice = value;
+						await this.plugin.saveSettings();
+					});
+			});
 
 		// Voice for asterisk text
 		const asteriskTextVoiceSetting = new Setting(containerEl)
 			.setName('Emphasized text voice')
 			.setDesc('Voice used for text within asterisks')
-			.addDropdown(dropdown => dropdown
-				.addOption('f', 'Default (Bella & Sarah mix) [US]')
-				.addOption('f_bella', 'Bella [US]')
-				.addOption('f_sarah', 'Sarah [US]')
-				.addOption('f_adam', 'Adam [US]')
-				.addOption('f_michael', 'Michael [US]')
-				.addOption('f_emma', 'Emma [GB]')
-				.addOption('f_isabella', 'Isabella [GB]')
-				.addOption('f_george', 'George [GB]')
-				.addOption('f_lewis', 'Lewis [GB]')
-				.addOption('f_nicole', 'Nicole [US]')
-				.addOption('f_sky', 'Sky [US]')
-				.setValue(this.plugin.settings.asteriskTextVoice)
-				.onChange(async (value) => {
-					this.plugin.settings.asteriskTextVoice = value;
-					await this.plugin.saveSettings();
-				}));
+			.addDropdown(dropdown => {
+				addVoiceOptions(dropdown);
+				return dropdown
+					.setValue(this.plugin.settings.asteriskTextVoice)
+					.onChange(async (value) => {
+						this.plugin.settings.asteriskTextVoice = value;
+						await this.plugin.saveSettings();
+					});
+			});
 
 		// Hide voice settings if distinct voices are disabled
 		if (!this.plugin.settings.useDistinctVoices) {
@@ -363,6 +387,34 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 
 		// Text Processing Settings
 		containerEl.createEl('h3', {text: 'Text processing'});
+
+		new Setting(containerEl)
+			.setName('Trim silence')
+			.setDesc('Remove silence from the start and end of each voice segment (experimental)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.trimSilence)
+				.onChange(async (value) => {
+					this.plugin.settings.trimSilence = value;
+					trimAmountSetting.settingEl.toggle(value);
+					await this.plugin.saveSettings();
+				}));
+
+		const trimAmountSetting = new Setting(containerEl)
+			.setName('Trim amount')
+			.setDesc('Amount of audio (in seconds) to trim from start and end')
+			.addSlider(slider => slider
+				.setLimits(0.05, 0.3, 0.05)
+				.setValue(this.plugin.settings.trimAmount)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.trimAmount = value;
+					await this.plugin.saveSettings();
+				}));
+
+		if (!this.plugin.settings.trimSilence) {
+			trimAmountSetting.settingEl.hide();
+		}
+
 
 		new Setting(containerEl)
 			.setName('Maximum chunk length')

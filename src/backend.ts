@@ -2,6 +2,8 @@ import { Notice } from 'obsidian';
 import { ChildProcess } from 'child_process';
 import { KokoroTTSSettings } from './settings';
 import { TextProcessor } from './text-processor';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class BackendManager {
     private ws: WebSocket | null = null;
@@ -30,7 +32,7 @@ export class BackendManager {
     async startBackend(): Promise<void> {
         // Validate required paths
         if (!this.settings.modelPath) {
-            throw new Error('Model path not set. Please set the full path to kokoro-v0_19.pth in settings.');
+            throw new Error('Model path not set. Please set the full path to the Kokoro model file in settings.');
         }
         if (!this.settings.voicesPath) {
             throw new Error('Voices path not set. Please set the full path to the voices directory in settings.');
@@ -40,12 +42,20 @@ export class BackendManager {
         }
 
         try {
+            // Save settings to a temporary file for the backend to access
+            const settingsPath = path.join(path.dirname(this.settings.backendPath), 'kokoro_settings.json');
+            console.log('Writing settings to:', settingsPath);
+            console.log('Settings content:', JSON.stringify(this.settings, null, 2));
+            await fs.promises.writeFile(settingsPath, JSON.stringify(this.settings, null, 2), 'utf-8');
+            console.log('Settings file written successfully');
+
             // Start Python backend process
             const { spawn } = require('child_process');
             this.pythonProcess = spawn(this.settings.pythonPath, [
                 this.settings.backendPath,
                 this.settings.modelPath,
-                this.settings.voicesPath
+                this.settings.voicesPath,
+                settingsPath  // Pass settings file path as argument
             ]);
 
             // Handle process events
@@ -53,9 +63,15 @@ export class BackendManager {
                 throw new Error('Failed to start Python process. Please verify your Python path in settings.');
             }
 
+            if (this.pythonProcess.stdout) {
+                this.pythonProcess.stdout.on('data', (data: Buffer) => {
+                    console.log('TTS Backend stdout:', data.toString());
+                });
+            }
+
             if (this.pythonProcess.stderr) {
                 this.pythonProcess.stderr.on('data', (data: Buffer) => {
-                    console.log('TTS Backend:', data.toString());
+                    console.log('TTS Backend stderr:', data.toString());
                 });
             }
 
@@ -196,6 +212,14 @@ export class BackendManager {
                 });
             }
 
+            // Clean up settings file
+            try {
+                const settingsPath = path.join(path.dirname(this.settings.backendPath), 'kokoro_settings.json');
+                await fs.promises.unlink(settingsPath);
+            } catch (error) {
+                console.error('Error cleaning up settings file:', error);
+            }
+
             this.onStatusChange();
             new Notice('Kokoro TTS backend stopped');
         } catch (error) {
@@ -237,9 +261,11 @@ export class BackendManager {
                 session_id: sessionId,
                 text: chunk.text.trim(),
                 voice: chunk.voice,
-                language: this.settings.language,
+                speed: this.settings.speed,
                 chunk_index: i,
-                is_last_chunk: isLastChunk
+                is_last_chunk: isLastChunk,
+                trim_silence: this.settings.trimSilence,
+                trim_amount: this.settings.trimAmount
             };
 
             this.ws.send(JSON.stringify(chunkCommand));

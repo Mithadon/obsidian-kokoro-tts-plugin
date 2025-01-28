@@ -10,6 +10,7 @@ export default class KokoroTTSPlugin extends Plugin {
 	textProcessor: TextProcessor;
 	statusBarItem: HTMLElement;
 	ribbonIcon: HTMLElement;
+	settingTab: KokoroTTSSettingTab;
 
 	async onload() {
 		try {
@@ -71,7 +72,8 @@ export default class KokoroTTSPlugin extends Plugin {
 			});
 
 			// Add settings tab
-			this.addSettingTab(new KokoroTTSSettingTab(this.app, this));
+			this.settingTab = new KokoroTTSSettingTab(this.app, this);
+			this.addSettingTab(this.settingTab);
 
 			// Add context menu items
 			this.registerEvent(

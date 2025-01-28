@@ -1,19 +1,31 @@
 #!/usr/bin/env python3
 import sys
 import json
-import torch
 import os
 import numpy
-from pathlib import Path
 import asyncio
 import websockets
 import logging
 import signal
 import warnings
+import functools
+import builtins
 
-# Filter out specific PyTorch warnings
+# Monkey patch built-in open to use UTF-8 for text mode
+_open = builtins.open
+@functools.wraps(_open)
+def _open_with_utf8(*args, **kwargs):
+    if len(args) > 1 and 'b' not in args[1]:  # Check if not binary mode
+        if 'encoding' not in kwargs:
+            kwargs['encoding'] = 'utf-8'
+    return _open(*args, **kwargs)
+builtins.open = _open_with_utf8
+
+# Filter out PyTorch warnings
 warnings.filterwarnings('ignore', message='.*weight_norm is deprecated.*')
 warnings.filterwarnings('ignore', message='.*dropout option adds dropout after all but last recurrent layer.*')
+
+from kokoro import KPipeline
 
 # Configure logging
 logging.basicConfig(
@@ -22,25 +34,19 @@ logging.basicConfig(
     stream=sys.stderr
 )
 
-# Set espeak-ng environment variables for Windows
-os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = r"C:\Program Files\eSpeak NG\libespeak-ng.dll"
-os.environ["PHONEMIZER_ESPEAK_PATH"] = r"C:\Program Files\eSpeak NG\espeak-ng.exe"
+# Set espeak-ng environment variables for Windows if espeak is installed
+if os.name == 'nt':  # Windows
+    espeak_lib = r"C:\Program Files\eSpeak NG\libespeak-ng.dll"
+    espeak_exe = r"C:\Program Files\eSpeak NG\espeak-ng.exe"
+    if os.path.exists(espeak_lib) and os.path.exists(espeak_exe):
+        os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = espeak_lib
+        os.environ["PHONEMIZER_ESPEAK_PATH"] = espeak_exe
+        logging.info("Found eSpeak NG installation, enabling fallback")
 
-# Get Kokoro root from first argument
+# Get Kokoro paths from arguments
 if len(sys.argv) < 3:
     logging.error("Usage: kokoro_backend.py <model_path> <voices_path>")
     sys.exit(1)
-
-kokoro_root = os.path.dirname(os.path.abspath(sys.argv[1]))
-sys.path.append(kokoro_root)
-
-try:
-    from models import build_model
-    from kokoro import generate
-    logging.info("Imported Kokoro modules")
-except ImportError as e:
-    logging.error(f"Could not import Kokoro modules from {kokoro_root}")
-    raise
 
 class TTSSession:
     def __init__(self, save_path=None, autoplay=True, total_chunks=0):
@@ -53,87 +59,49 @@ class TTSSession:
         self.total_chars = 0
 
 class KokoroTTSBackend:
-    # Voice name mapping
-    VOICE_DEFAULTS = {
-        'f': 'a',           # Default voice (Bella & Sarah mix) - US
-        'f_bella': 'a',     # Bella - US
-        'f_sarah': 'a',     # Sarah - US
-        'f_adam': 'a',      # Adam - US
-        'f_michael': 'a',   # Michael - US
-        'f_emma': 'b',      # Emma - GB
-        'f_isabella': 'b',  # Isabella - GB
-        'f_george': 'b',    # George - GB
-        'f_lewis': 'b',     # Lewis - GB
-        'f_nicole': 'a',    # Nicole - US
-        'f_sky': 'a',       # Sky - US
-    }
-
     def __init__(self, model_path, voices_path):
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        logging.info(f"Using device: {self.device}")
-        
-        # Load model
         try:
-            self.model = build_model(model_path, self.device)
-            logging.info("Model loaded")
+            # Initialize pipeline with American English by default, no transformer
+            self.pipeline = KPipeline(lang_code='a', trf=False)
+            logging.info("Kokoro pipeline initialized")
         except Exception as e:
-            logging.error(f"Failed to load model: {str(e)}")
+            logging.error(f"Failed to initialize pipeline: {str(e)}")
             raise
-        
-        # Load voices
-        self.voices = {}
-        voices_dir = Path(voices_path)
-        for voice_file in voices_dir.glob("*.pt"):
-            # Get base voice name by removing language prefix
-            voice_name = voice_file.stem
-            base_name = voice_name[1:] if voice_name.startswith(('a', 'b')) else voice_name
             
-            # Load voice for both US and GB variants
-            voice_data = torch.load(voice_file, weights_only=True).to(self.device)
-            self.voices['a' + base_name] = voice_data  # US variant
-            self.voices['b' + base_name] = voice_data  # GB variant
-            
-        logging.info(f"Loaded {len(self.voices) // 2} voices")
-        
         self.current_audio = None
         self.stop_event = asyncio.Event()
         self.sessions = {}  # Store active TTS sessions
 
-    def get_engine_voice_name(self, voice_name: str, language: str) -> str:
-        """Get the full voice name for the engine with appropriate language prefix"""
-        # Remove any existing language prefix
-        base_name = voice_name[1:] if voice_name.startswith(('a', 'b')) else voice_name
+    async def generate_speech(self, text, voice_name='af_bella', speed=1.0, trim_silence=False, trim_amount=0.1):
+        logging.info(f"Generating speech with voice: {voice_name} (speed: {speed})")
         
-        # Get default language for this voice
-        default_lang = self.VOICE_DEFAULTS.get(base_name, 'a')
-        
-        # Use specified language or default
-        lang_prefix = 'a' if language == 'en-us' else ('b' if language == 'en-gb' else default_lang)
-        engine_voice = lang_prefix + base_name
-        
-        logging.info(f"Voice mapping: {voice_name} -> {engine_voice} (language: {language}, default: {default_lang})")
-        return engine_voice
-
-    async def generate_speech(self, text, voice_name='f', language='default'):
-        # Get full voice name for engine
-        engine_voice = self.get_engine_voice_name(voice_name, language)
-        
-        if engine_voice not in self.voices:
-            raise ValueError(f"Voice {engine_voice} not found")
+        # Generate audio using pipeline
+        try:
+            # Use full path to voice file
+            voice_path = os.path.join(os.path.abspath(sys.argv[2]), voice_name + '.pt' if not voice_name.endswith('.pt') else voice_name)
             
-        # Get language code from engine voice name
-        lang = engine_voice[0]
-        logging.info(f"Using voice: {engine_voice} (lang: {lang})")
-        
-        # Generate audio
-        audio, phonemes = generate(
-            self.model,
-            text,
-            self.voices[engine_voice],
-            lang=lang
-        )
+            # Validate voice prefix matches pipeline language
+            voice_prefix = voice_name[:2] if len(voice_name) > 2 else ''
+            if voice_prefix not in ['af', 'am', 'bf', 'bm']:
+                logging.warning(f"Invalid voice prefix '{voice_prefix}'. Expected af/am/bf/bm. Using voice as-is.")
             
-        return audio, phonemes
+            generator = self.pipeline(text, voice=voice_path, speed=speed)
+            _, _, audio = next(generator)
+            
+            # Trim silence if requested
+            if trim_silence and len(audio) > 0:
+                # Calculate samples to trim (24000 samples per second)
+                trim_samples = int(24000 * trim_amount)
+                if len(audio) > (2 * trim_samples):  # Only trim if audio is long enough
+                    audio = audio[trim_samples:-trim_samples]
+            
+            return audio, None
+            
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            logging.error(f"Failed to generate speech: {str(e)}\n{error_details}")
+            raise
 
     def concatenate_audio(self, audio_chunks):
         """Concatenate multiple audio chunks into a single audio stream"""
@@ -190,7 +158,8 @@ async def handle_client(websocket, backend):
                 elif action == 'speak':
                     session_id = data.get('session_id')
                     text = data.get('text', '')
-                    voice = data.get('voice', 'f')  # Default voice without language prefix
+                    voice = data.get('voice', 'af_bella')  # Default voice
+                    speed = data.get('speed', 1.0)  # Default speed
                     is_last_chunk = data.get('is_last_chunk', False)
                     
                     if session_id not in backend.sessions:
@@ -205,7 +174,13 @@ async def handle_client(websocket, backend):
                     }))
                     
                     # Generate audio
-                    audio, phonemes = await backend.generate_speech(text, voice, data.get('language', 'default'))
+                    audio, _ = await backend.generate_speech(
+                        text, 
+                        voice,
+                        speed,
+                        data.get('trim_silence', False),
+                        data.get('trim_amount', 0.1)
+                    )
                     
                     # Store audio chunk and update stats
                     session.audio_chunks.append(audio)
@@ -246,7 +221,6 @@ async def handle_client(websocket, backend):
                     await websocket.send(json.dumps({
                         'status': 'generated',
                         'message': 'Speech generated',
-                        'phonemes': phonemes,
                         'is_last_chunk': is_last_chunk
                     }))
                         
