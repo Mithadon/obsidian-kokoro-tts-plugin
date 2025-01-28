@@ -183,55 +183,105 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h4', {text: 'Voice Selection'});
 
-		const addVoiceOptions = (dropdown: any) => {
-			// Add regular voices
-			dropdown
-				// American Female voices
-				.addOption('af_alloy', 'Alloy [US Female]')
-				.addOption('af_aoede', 'Aoede [US Female]')
-				.addOption('af_bella', 'Bella [US Female]')
-				.addOption('af_jessica', 'Jessica [US Female]')
-				.addOption('af_kore', 'Kore [US Female]')
-				.addOption('af_nicole', 'Nicole [US Female]')
-				.addOption('af_nova', 'Nova [US Female]')
-				.addOption('af_river', 'River [US Female]')
-				.addOption('af_sarah', 'Sarah [US Female]')
-				.addOption('af_sky', 'Sky [US Female]')
-				// American Male voices
-				.addOption('am_adam', 'Adam [US Male]')
-				.addOption('am_echo', 'Echo [US Male]')
-				.addOption('am_eric', 'Eric [US Male]')
-				.addOption('am_fenrir', 'Fenrir [US Male]')
-				.addOption('am_liam', 'Liam [US Male]')
-				.addOption('am_michael', 'Michael [US Male]')
-				.addOption('am_onyx', 'Onyx [US Male]')
-				.addOption('am_puck', 'Puck [US Male]')
-				// British Female voices
-				.addOption('bf_alice', 'Alice [UK Female]')
-				.addOption('bf_emma', 'Emma [UK Female]')
-				.addOption('bf_isabella', 'Isabella [UK Female]')
-				.addOption('bf_lily', 'Lily [UK Female]')
-				// British Male voices
-				.addOption('bm_daniel', 'Daniel [UK Male]')
-				.addOption('bm_fable', 'Fable [UK Male]')
-				.addOption('bm_george', 'George [UK Male]')
-				.addOption('bm_lewis', 'Lewis [UK Male]');
-
-			return dropdown;
-		};
-
-		new Setting(containerEl)
+		// Voice selection with refresh button
+		const voiceContainer = containerEl.createDiv('voice-selection-container');
+		
+		const voiceSetting = new Setting(voiceContainer)
 			.setName('Voice')
 			.setDesc('Select TTS voice or a voice mix preset')
-			.addDropdown(dropdown => {
-				addVoiceOptions(dropdown);
-				return dropdown
-					.setValue(this.plugin.settings.selectedVoice)
-					.onChange(async (value) => {
+			.addDropdown(async (dropdown) => {
+				try {
+					// Get available voices from backend
+					const voices = await this.plugin.backend.getAvailableVoices();
+					
+					// Add all available voices
+					voices.forEach(voice => {
+						dropdown.addOption(voice.id, voice.display);
+					});
+					
+					dropdown.setValue(this.plugin.settings.selectedVoice);
+					
+					dropdown.onChange(async (value) => {
 						this.plugin.settings.selectedVoice = value;
 						await this.plugin.saveSettings();
 					});
+				} catch (error) {
+					console.error('Error loading voices:', error);
+					// Add default voice as fallback
+					dropdown.addOption('af_bella', 'Bella [US Female]');
+					dropdown.setValue('af_bella');
+					new Notice('Failed to load voices. Please ensure the backend is running.');
+				}
 			});
+
+		// Add refresh button next to voice dropdown
+		voiceSetting.addButton((button) => {
+			return button
+				.setIcon('refresh-cw')
+				.setTooltip('Refresh voice list')
+				.onClick(async () => {
+					try {
+						// Get fresh voice list
+						const voices = await this.plugin.backend.getAvailableVoices(true);
+						
+						// Update main voice dropdown
+						const mainDropdown = voiceSetting.components[0] as any;
+						mainDropdown.selectEl.empty();
+						voices.forEach(voice => {
+							mainDropdown.addOption(voice.id, voice.display);
+						});
+						
+						// Keep current selection if it still exists, otherwise use first voice
+						const currentVoice = this.plugin.settings.selectedVoice;
+						if (voices.some(v => v.id === currentVoice)) {
+							mainDropdown.setValue(currentVoice);
+						} else if (voices.length > 0) {
+							mainDropdown.setValue(voices[0].id);
+							this.plugin.settings.selectedVoice = voices[0].id;
+							await this.plugin.saveSettings();
+						}
+
+						// Update quoted text voice dropdown if visible
+						if (this.plugin.settings.useDistinctVoices) {
+							const quotedDropdown = quotedTextVoiceSetting.components[0] as any;
+							quotedDropdown.selectEl.empty();
+							voices.forEach(voice => {
+								quotedDropdown.addOption(voice.id, voice.display);
+							});
+							const currentQuotedVoice = this.plugin.settings.quotedTextVoice;
+							if (voices.some(v => v.id === currentQuotedVoice)) {
+								quotedDropdown.setValue(currentQuotedVoice);
+							} else if (voices.length > 0) {
+								quotedDropdown.setValue(voices[0].id);
+								this.plugin.settings.quotedTextVoice = voices[0].id;
+								await this.plugin.saveSettings();
+							}
+
+							// Update asterisk text voice dropdown
+							const asteriskDropdown = asteriskTextVoiceSetting.components[0] as any;
+							asteriskDropdown.selectEl.empty();
+							voices.forEach(voice => {
+								asteriskDropdown.addOption(voice.id, voice.display);
+							});
+							const currentAsteriskVoice = this.plugin.settings.asteriskTextVoice;
+							if (voices.some(v => v.id === currentAsteriskVoice)) {
+								asteriskDropdown.setValue(currentAsteriskVoice);
+							} else if (voices.length > 0) {
+								asteriskDropdown.setValue(voices[0].id);
+								this.plugin.settings.asteriskTextVoice = voices[0].id;
+								await this.plugin.saveSettings();
+							}
+						}
+						
+						// Update text processor's voice map
+						this.plugin.textProcessor.updateVoiceMap();
+						new Notice('Voice list refreshed');
+					} catch (error) {
+						console.error('Error refreshing voices:', error);
+						new Notice('Failed to refresh voices. Please ensure the backend is running.');
+					}
+				});
+		});
 
 		// Audio Settings
 		containerEl.createEl('h3', {text: 'Audio settings'});
@@ -351,32 +401,48 @@ export class KokoroTTSSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// Voice for quoted text
+		// Voice for quoted text with refresh button
 		const quotedTextVoiceSetting = new Setting(containerEl)
 			.setName('Quoted text voice')
 			.setDesc('Voice used for text within quotation marks')
-			.addDropdown(dropdown => {
-				addVoiceOptions(dropdown);
-				return dropdown
-					.setValue(this.plugin.settings.quotedTextVoice)
-					.onChange(async (value) => {
+			.addDropdown(async (dropdown) => {
+				try {
+					const voices = await this.plugin.backend.getAvailableVoices();
+					voices.forEach(voice => {
+						dropdown.addOption(voice.id, voice.display);
+					});
+					dropdown.setValue(this.plugin.settings.quotedTextVoice);
+					dropdown.onChange(async (value) => {
 						this.plugin.settings.quotedTextVoice = value;
 						await this.plugin.saveSettings();
 					});
+				} catch (error) {
+					console.error('Error loading voices for quoted text:', error);
+					dropdown.addOption('af_bella', 'Bella [US Female]');
+					dropdown.setValue('af_bella');
+				}
 			});
 
-		// Voice for asterisk text
+		// Voice for asterisk text with refresh button
 		const asteriskTextVoiceSetting = new Setting(containerEl)
 			.setName('Emphasized text voice')
 			.setDesc('Voice used for text within asterisks')
-			.addDropdown(dropdown => {
-				addVoiceOptions(dropdown);
-				return dropdown
-					.setValue(this.plugin.settings.asteriskTextVoice)
-					.onChange(async (value) => {
+			.addDropdown(async (dropdown) => {
+				try {
+					const voices = await this.plugin.backend.getAvailableVoices();
+					voices.forEach(voice => {
+						dropdown.addOption(voice.id, voice.display);
+					});
+					dropdown.setValue(this.plugin.settings.asteriskTextVoice);
+					dropdown.onChange(async (value) => {
 						this.plugin.settings.asteriskTextVoice = value;
 						await this.plugin.saveSettings();
 					});
+				} catch (error) {
+					console.error('Error loading voices for emphasized text:', error);
+					dropdown.addOption('af_bella', 'Bella [US Female]');
+					dropdown.setValue('af_bella');
+				}
 			});
 
 		// Hide voice settings if distinct voices are disabled

@@ -23,41 +23,53 @@ export class TextProcessor {
         /"/g,               // Straight quotes
     ];
 
-    // Voice name mapping
-    private static readonly VOICE_MAP: { [key: string]: string } = {
-        // American Female voices
-        'alloy': 'af_alloy',
-        'aoede': 'af_aoede',
-        'bella': 'af_bella',
-        'jessica': 'af_jessica',
-        'kore': 'af_kore',
-        'nicole': 'af_nicole',
-        'nova': 'af_nova',
-        'river': 'af_river',
-        'sarah': 'af_sarah',
-        'sky': 'af_sky',
-        // American Male voices
-        'adam': 'am_adam',
-        'echo': 'am_echo',
-        'eric': 'am_eric',
-        'fenrir': 'am_fenrir',
-        'liam': 'am_liam',
-        'michael': 'am_michael',
-        'onyx': 'am_onyx',
-        'puck': 'am_puck',
-        // British Female voices
-        'alice': 'bf_alice',
-        'emma': 'bf_emma',
-        'isabella': 'bf_isabella',
-        'lily': 'bf_lily',
-        // British Male voices
-        'daniel': 'bm_daniel',
-        'fable': 'bm_fable',
-        'george': 'bm_george',
-        'lewis': 'bm_lewis'
-    };
+    private voiceMap: Map<string, string> = new Map();
 
-    constructor(private settings: KokoroTTSSettings) {}
+    constructor(private settings: KokoroTTSSettings) {
+        // Initialize with default mappings
+        this.updateVoiceMap();
+    }
+
+    /**
+     * Updates the voice map with current voice files
+     */
+    public updateVoiceMap() {
+        this.voiceMap.clear();
+        
+        // Add mappings without prefix (e.g., 'bella' -> 'af_bella')
+        const addMapping = (fullName: string) => {
+            // Extract the name part after the prefix and underscore
+            const match = fullName.match(/^[a-z]{2}_(.+)$/);
+            if (match) {
+                const shortName = match[1].toLowerCase();
+                this.voiceMap.set(shortName, fullName);
+            }
+            // Also add the full name mapping
+            this.voiceMap.set(fullName.toLowerCase(), fullName);
+        };
+
+        // Add all stock voices
+        ['af_alloy', 'af_aoede', 'af_bella', 'af_jessica', 'af_kore', 'af_nicole', 'af_nova', 
+         'af_river', 'af_sarah', 'af_sky', 'am_adam', 'am_echo', 'am_eric', 'am_fenrir', 
+         'am_liam', 'am_michael', 'am_onyx', 'am_puck', 'bf_alice', 'bf_emma', 'bf_isabella', 
+         'bf_lily', 'bm_daniel', 'bm_fable', 'bm_george', 'bm_lewis'].forEach(addMapping);
+
+        // Try to get additional voices from settings
+        try {
+            if (this.settings.voicesPath) {
+                const fs = require('fs');
+                const files = fs.readdirSync(this.settings.voicesPath);
+                files.forEach((file: string) => {
+                    if (file.endsWith('.pt')) {
+                        const voiceName = file.slice(0, -3); // Remove .pt extension
+                        addMapping(voiceName);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error loading additional voices:', error);
+        }
+    }
 
     /**
      * Pre-processes text to handle ktts prefixes and normalize quotes
@@ -104,32 +116,25 @@ export class TextProcessor {
     }
 
     /**
-     * Get voice from code, handling regular voices
+     * Get voice from code, handling both short and full names
      */
     private getVoiceFromCode(code: string): string {
-        // Handle empty code
         if (!code) {
             return this.settings.selectedVoice;
         }
 
-        // Handle US Female voices
-        if (['alloy', 'aoede', 'bella', 'jessica', 'kore', 'nicole', 'nova', 'river', 'sarah', 'sky'].includes(code)) {
-            return `af_${code}`;
+        // Try to find the voice in our map
+        const normalizedCode = code.toLowerCase();
+        const mappedVoice = this.voiceMap.get(normalizedCode);
+        
+        if (mappedVoice) {
+            return mappedVoice;
         }
 
-        // Handle US Male voices
-        if (['adam', 'echo', 'eric', 'fenrir', 'liam', 'michael', 'onyx', 'puck'].includes(code)) {
-            return `am_${code}`;
-        }
-
-        // Handle UK Female voices
-        if (['alice', 'emma', 'isabella', 'lily'].includes(code)) {
-            return `bf_${code}`;
-        }
-
-        // Handle UK Male voices
-        if (['daniel', 'fable', 'george', 'lewis'].includes(code)) {
-            return `bm_${code}`;
+        // If not found, check if it's already a valid voice name with prefix
+        const prefixMatch = normalizedCode.match(/^(af|am|bf|bm)_/);
+        if (prefixMatch && this.voiceMap.has(normalizedCode)) {
+            return normalizedCode;
         }
 
         // If code not recognized, use default voice

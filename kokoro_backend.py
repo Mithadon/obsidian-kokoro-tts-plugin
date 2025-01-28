@@ -134,6 +134,51 @@ async def handle_client(websocket, backend):
                 data = json.loads(message)
                 action = data.get('action')
                 
+                if action == 'list_voices':
+                    # Scan voices directory for .pt files
+                    voices_dir = os.path.abspath(sys.argv[2])
+                    try:
+                        voice_files = [f for f in os.listdir(voices_dir) if f.endswith('.pt')]
+                        voice_list = []
+                        
+                        for file in voice_files:
+                            voice_name = file[:-3]  # Remove .pt extension
+                            voice_prefix = voice_name[:2] if len(voice_name) > 2 else ''
+                            
+                            # Validate voice prefix and categorize
+                            if voice_prefix in ['af', 'am', 'bf', 'bm']:
+                                # Extract name part after prefix and underscore
+                                name_part = voice_name[3:] if len(voice_name) > 3 else voice_name
+                                # Capitalize name part
+                                display_name = name_part.replace('_', ' ').title()
+                                
+                                # Add category label
+                                category = {
+                                    'af': '[US Female]',
+                                    'am': '[US Male]',
+                                    'bf': '[UK Female]',
+                                    'bm': '[UK Male]'
+                                }.get(voice_prefix, '')
+                                
+                                voice_list.append({
+                                    'id': voice_name,
+                                    'display': f"{display_name} {category}".strip()
+                                })
+                            else:
+                                logging.warning(f"Skipping voice with invalid prefix: {voice_name}")
+                        
+                        await websocket.send(json.dumps({
+                            'status': 'voices_list',
+                            'voices': voice_list
+                        }))
+                    except Exception as e:
+                        logging.error(f"Error listing voices: {str(e)}")
+                        await websocket.send(json.dumps({
+                            'status': 'error',
+                            'message': f'Failed to list voices: {str(e)}'
+                        }))
+                    continue
+                    
                 if action == 'ping':
                     # Respond to ping with pong
                     await websocket.send(json.dumps({

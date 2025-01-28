@@ -4,6 +4,13 @@ This plugin integrates the Kokoro TTS engine into Obsidian, providing high-quali
 
 I have only tested it in Windows 11, and it requires manual installation as it works with a locally hosted Kokoro TTS backend. The backend will use CUDA if available, or fallback to CPU.
 
+NEW IN 2.1:
+- Added support for custom voice files
+- Added a script you can use for voice (see voice_merging_guide.md)
+- Automatic detection of new voices in the voices directory, to easily use custom merged voices
+- Refresh button to update voice lists in real-time
+- Custom voices also work with inline voice selection (e.g., for a custom voice af_crystal.pt, use kttscrystal"Hello")
+
 NEW IN 2.0:
 - Updated to support Kokoro v1.0
 - Expanded voice selection with 26+ voices:
@@ -15,7 +22,6 @@ NEW IN 2.0:
   * Each voice now has its native language variant built-in
   * Removed manual language variant selection
   * Updated voice selection UI with clear categorization
-
 
 NEW IN 1.3:
 - Added inline voice selection with `ktts` prefix
@@ -55,7 +61,6 @@ kttsnicole"Nicole here!" kttssky"And Sky, wrapping up our voice demo!"
 kttsbella"You can also have multiple voices in one paragraph!" kttsemma"Indeed you can!" And back to the narrator.
 ```
 
-
 NEW IN 1.2:
 - Force US/GB variant (very little impact)
 - Fixed audio chunk concatenation
@@ -71,6 +76,7 @@ NEW IN 1.2:
   * 8 American Male voices
   * 4 British Female voices
   * 4 British Male voices
+  * Support for custom voice files (see voice_merging_guide.md)
 - Advanced voice control:
   * Inline voice selection with `ktts` prefix
   * Distinct voices for quoted and emphasized text
@@ -195,11 +201,24 @@ Available voice codes:
 - US Male voices: adam, echo, eric, fenrir, liam, michael, onyx, puck
 - UK Female voices: alice, emma, isabella, lily
 - UK Male voices: daniel, fable, george, lewis
+- Custom voices: use the name part after the prefix (e.g., for af_crystal.pt use kttscrystal)
 
 Notes:
 - Any unrecognized voice code will use the default selected voice
 - This feature works independently of the "Special text voices" settings
 - Voice codes are case-sensitive
+
+### Custom Voices
+
+The plugin now supports custom voice files:
+1. Create custom voices using merge_voices.py (see VOICE_MERGING_GUIDE.md)
+2. Place the .pt files in your voices directory with appropriate prefixes:
+   - af_* for American Female voices
+   - am_* for American Male voices
+   - bf_* for British Female voices
+   - bm_* for British Male voices
+3. Click the refresh button in settings to detect new voices
+4. Use custom voices in dropdowns or with inline ktts prefix
 
 ### Audio Files
 

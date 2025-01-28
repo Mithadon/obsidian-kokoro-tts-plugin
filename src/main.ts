@@ -17,11 +17,22 @@ export default class KokoroTTSPlugin extends Plugin {
 			await this.loadSettings();
 
 			// Initialize components
-			this.backend = new BackendManager(this.settings, () => {
+			this.textProcessor = new TextProcessor(this.settings);
+			
+			this.backend = new BackendManager(this.settings, async () => {
 				this.updateRibbonIcon();
 				this.updateStatusBar();
+				
+				// If backend is connected, try to load voice list and update text processor
+				if (this.backend.isConnected) {
+					try {
+						await this.backend.getAvailableVoices(true);
+						this.textProcessor.updateVoiceMap();
+					} catch (error) {
+						console.error('Error loading initial voice list:', error);
+					}
+				}
 			});
-			this.textProcessor = new TextProcessor(this.settings);
 
 			// Add ribbon icon to show status
 			this.ribbonIcon = this.addRibbonIcon('sound', 'Kokoro TTS', (evt: MouseEvent) => {

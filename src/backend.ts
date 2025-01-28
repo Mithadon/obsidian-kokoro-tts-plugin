@@ -11,6 +11,7 @@ export class BackendManager {
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 5;
     private reconnectTimeout = 1000;  // Start with 1 second
+    private voiceListCache: { id: string; display: string }[] | null = null;
 
     private textProcessor: TextProcessor;
 
@@ -166,6 +167,11 @@ export class BackendManager {
                         case 'stopped':
                             new Notice('Speech stopped');
                             break;
+                        case 'voices_list':
+                            if (response.voices) {
+                                this.voiceListCache = response.voices;
+                            }
+                            break;
                     }
                     
                 } catch (error) {
@@ -285,6 +291,47 @@ export class BackendManager {
                 this.ws?.addEventListener('message', handler);
             });
         }
+    }
+
+    async getAvailableVoices(forceRefresh = false): Promise<{ id: string; display: string }[]> {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            throw new Error('TTS backend not connected. Please start the backend in settings first.');
+        }
+
+        // Return cached list if available and not forcing refresh
+        if (!forceRefresh && this.voiceListCache) {
+            return this.voiceListCache;
+        }
+
+        // Request voice list from backend
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Timeout waiting for voice list'));
+            }, 5000);
+
+            const messageHandler = (event: MessageEvent) => {
+                const response = JSON.parse(event.data);
+                if (response.status === 'voices_list') {
+                    clearTimeout(timeout);
+                    this.ws?.removeEventListener('message', messageHandler);
+                    this.voiceListCache = response.voices;
+                    resolve(response.voices);
+                } else if (response.status === 'error') {
+                    clearTimeout(timeout);
+                    this.ws?.removeEventListener('message', messageHandler);
+                    reject(new Error(response.message));
+                }
+            };
+
+            try {
+                this.ws?.addEventListener('message', messageHandler);
+                this.ws?.send(JSON.stringify({ action: 'list_voices' }));
+            } catch (error) {
+                clearTimeout(timeout);
+                this.ws?.removeEventListener('message', messageHandler);
+                reject(error);
+            }
+        });
     }
 
     stopSpeech(): void {
